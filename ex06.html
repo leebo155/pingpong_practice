@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Detection</title>
+        <style>
+            * {
+                padding: 0;
+                margin: 0;
+            }
+            canvas {
+                background-color: #eee;
+                display: block;
+                margin: 0 auto;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="myCanvas" width="480" height="360"></canvas>
+        <script>
+            const canvas = document.getElementById("myCanvas");
+            const ctx = canvas.getContext("2d");
+            const ballRadius = 10;
+            
+            let x = canvas.width / 2;
+            let y = canvas.height - 30;
+            let dx = 2;
+            let dy = -2;
+
+            let loop;
+
+            function drawBall() {
+                ctx.beginPath();
+                ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "#0095DD";
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            var paddleHeight = 10;
+            var paddleWidth = 75;
+            var paddleX = (canvas.width - paddleWidth) / 2;
+            var rightPressed = false;
+            var leftPressed = false;
+
+            function drawPaddle() {
+                ctx.beginPath();
+                ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+                ctx.fillStyle = "#0095DD";
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            function keyDownHandler(e) {
+                if (e.keyCode == 39) {
+                    rightPressed = true;
+                } else if (e.keyCode == 37) {
+                    leftPressed = true;
+                }
+            }
+
+            function keyUpHandler(e) {
+                if (e.keyCode == 39) {
+                    rightPressed = false;
+                } else if (e.keyCode == 37) {
+                    leftPressed = false;
+                }
+            }
+            
+            const brickRowCount = 3;
+            const brickColumnCount = 5;
+            const brickWidth = 75;
+            const brickHeight = 20;
+            const brickPadding = 10;
+            const brickOffsetTop = 30;
+            const brickOffsetLeft = 30;
+
+            const bricks = [];
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = { x:0, y:0, status:1};
+                }
+            }
+
+            function collisionDetection() {
+                for (let c = 0; c < brickColumnCount; c++) {
+                    for (let r = 0; r < brickRowCount; r++) {
+                        const b = bricks[c][r];
+                        if (b.status && isCollision(x, y, b.x, b.y, brickWidth, brickHeight)) {
+                            if (x > b.x && x < b.x + brickWidth) {
+                                dy = -dy;
+                            } else if (y > b.y && y < b.y + brickHeight) {
+                                dx = -dx;
+                            } else {
+                                dx = -dx;
+                                dy = -dy;
+                            }
+                            
+                            b.status = 0;
+                        }
+                    }
+                }
+            }
+
+            function drawBricks() {
+                for (let c = 0; c < brickColumnCount; c++) {
+                    for (let r = 0; r < brickRowCount; r++) {
+                        if (bricks[c][r].status == 0) {
+                            continue;
+                        }
+                        const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+                        const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        ctx.fillStyle = "#0095DD";
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+
+            function isPointInCircle(cx, cy, rx, ry) {
+                let deltaX = cx - rx;
+                let deltaY = cy - ry;
+                let length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                if (length > ballRadius)
+                    return false;
+                return true;
+            }
+
+            function isCollision(cx, cy, rx, ry, rw, rh) {
+                if ((rx <= cx && cx <= rx + rw) || (ry <= cy && cy <= ry + rh)) {
+                    if ((rx - ballRadius < cx && cx < rx + rw + ballRadius)
+                    && (ry - ballRadius <= cy && cy <= ry + rh + ballRadius)) {
+                        return true;
+                    }
+                } else {
+                    if (isPointInCircle(cx, cy, rx, ry)
+                    || isPointInCircle(cx, cy, rx + rw, ry)
+                    || isPointInCircle(cx, cy, rx, ry + rh)
+                    || isPointInCircle(cx, cy, rx + rw, ry + rh)) {
+                        return true;
+                    }
+                }
+                console.log(cx, cy, rx, ry, rw, rh);
+                return false;
+            }
+
+            document.addEventListener("keydown", keyDownHandler, false);
+            document.addEventListener("keyup", keyUpHandler, false);
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBricks();
+                drawBall();
+                drawPaddle();
+                collisionDetection();
+
+                if (x + dx < ballRadius || x + dx > canvas.width - ballRadius) {
+                    dx = -dx;
+                }
+                if (y + dy < ballRadius) {
+                    dy = -dy;
+                }
+                if (isCollision(x, y, paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight)) {
+                    if (x > paddleX && x < paddleX + paddleWidth) {
+                        dy = -dy;
+                    } else if (y > canvas.height - paddleHeight && y < canvas.height) {
+                        dx = -dx;
+                    } else {
+                        dx = -dx;
+                        dy = -dy;
+                    }
+                }
+                if (y + ballRadius > canvas.height) {
+                    alert("GAME OVER");
+                    clearInterval(loop);
+                    document.location.reload();
+                }
+
+                if (!leftPressed && rightPressed && paddleX < canvas.width - paddleWidth) {
+                    paddleX += 7;
+                } else if (!rightPressed && leftPressed && paddleX > 0) {
+                    paddleX -= 7;
+                }
+                x += dx;
+                y += dy;
+            }
+
+            loop = setInterval(draw, 10);
+        </script>
+    </body>
+</html>
